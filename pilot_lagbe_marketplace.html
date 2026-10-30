@@ -1,0 +1,1333 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pilot Lagbe - পাইলাট লাগবে | Service Marketplace</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                        },
+                        pilot: {
+                            500: '#f97316',
+                            600: '#ea580c',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Inter', 'Hind Siliguri', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <!-- Google Fonts for Bengali -->
+    <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+    <style>
+        body {
+            font-family: 'Hind Siliguri', 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        
+        .map-grid-bg {
+            background-color: #e5e7eb;
+            background-image: 
+                radial-gradient(#9ca3af 1px, transparent 1px), 
+                radial-gradient(#9ca3af 1px, #e5e7eb 1px);
+            background-size: 20px 20px;
+            background-position: 0 0, 10px 10px;
+        }
+
+        /* Pulse animation for active pilot tracking */
+        @keyframes pulse-ring {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.3); opacity: 0.3; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+        .pulse-marker {
+            animation: pulse-ring 2s infinite ease-in-out;
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body class="text-slate-800 antialiased min-h-screen flex flex-col">
+
+    <!-- Top Role Navigation & persistent header -->
+    <header class="sticky top-0 z-40 bg-slate-900 text-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                
+                <!-- Logo & Tagline -->
+                <div class="flex items-center gap-3 cursor-pointer" onclick="app.switchView('dashboard')">
+                    <div class="bg-gradient-to-tr from-blue-600 to-amber-500 p-2.5 rounded-xl shadow-lg flex items-center justify-center text-white font-bold text-xl">
+                        <i class="fa-solid fa-paper-plane"></i>
+                    </div>
+                    <div>
+                        <h1 class="font-bold text-xl leading-tight tracking-wide flex items-center gap-2">
+                            Pilot Lagbe <span class="text-xs bg-amber-500 text-slate-950 font-extrabold px-1.5 py-0.5 rounded">পাইলাট লাগবে</span>
+                        </h1>
+                        <p class="text-xs text-slate-400">আপনার দরজায় নির্ভরযোগ্য সার্ভিস হেল্পার</p>
+                    </div>
+                </div>
+
+                <!-- Role Selector Switcher -->
+                <div class="hidden sm:flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
+                    <button id="roleBtnCustomer" onclick="app.setRole('customer')" 
+                        class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-user-tie"></i> কাস্টমার
+                    </button>
+                    <button id="roleBtnPilot" onclick="app.setRole('pilot')" 
+                        class="px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2">
+                        <i class="fa-solid fa-helmet-safety"></i> পাইলট (টাস্কার)
+                    </button>
+                </div>
+
+                <!-- Profile & Notifications -->
+                <div class="flex items-center gap-3">
+                    <!-- Notification Bell -->
+                    <div class="relative">
+                        <button onclick="app.toggleNotifications()" class="p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white hover:bg-slate-700 relative transition">
+                            <i class="fa-solid fa-bell text-lg"></i>
+                            <span id="notifBadge" class="hidden absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] font-bold w-5 h-5 rounded-full flex items-center justify-center border-2 border-slate-900">0</span>
+                        </button>
+                        
+                        <!-- Notification Dropdown -->
+                        <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white text-slate-800 rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+                            <div class="p-3 bg-slate-100 border-b border-slate-200 font-bold flex justify-between items-center text-sm">
+                                <span>নোটিফিকেশন সমুহ</span>
+                                <button onclick="app.clearNotifications()" class="text-xs text-blue-600 hover:underline">ক্লিয়ার করুন</button>
+                            </div>
+                            <div id="notifList" class="max-h-64 overflow-y-auto divide-y divide-slate-100 text-sm">
+                                <div class="p-4 text-center text-slate-400 text-xs">কোন নতুন নোটিফিকেশন নেই</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- User Account / Switch Demo Users -->
+                    <div class="flex items-center gap-2 border-l border-slate-700 pl-3">
+                        <img id="headerAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" 
+                            alt="Profile" class="w-9 h-9 rounded-full object-cover ring-2 ring-blue-500">
+                        <div class="hidden md:block text-left">
+                            <div id="headerUserName" class="text-xs font-bold leading-tight">রাহিম আহমেদ</div>
+                            <div id="headerUserRole" class="text-[10px] text-amber-400 font-medium">কাস্টমার মোড</div>
+                        </div>
+                        <button onclick="app.openAuthModal()" class="text-xs text-slate-400 hover:text-white ml-1 p-1">
+                            <i class="fa-solid fa-arrows-rotate"></i>
+                        </button>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- Mobile Role Switcher Banner -->
+        <div class="sm:hidden bg-slate-800 px-4 py-2 flex justify-between items-center border-t border-slate-700 text-xs">
+            <span class="text-slate-300">বর্তমান মোড: <strong id="mobileRoleLabel" class="text-amber-400">কাস্টমার</strong></span>
+            <button onclick="app.toggleRole()" class="bg-blue-600 px-3 py-1 rounded-md text-white font-medium">
+                রোল পরিবর্তন করুন <i class="fa-solid fa-repeat ml-1"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Dynamic Content Wrapper -->
+    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <!-- ================= CUSTOMER VIEW ================= -->
+        <div id="customerDashboardView" class="space-y-6">
+            
+            <!-- Hero Banner / Create Task Quick Bar -->
+            <div class="bg-gradient-to-r from-blue-700 via-blue-600 to-indigo-800 text-white rounded-2xl p-6 sm:p-8 shadow-xl relative overflow-hidden">
+                <div class="absolute -right-10 -bottom-10 opacity-10 text-white text-9xl font-black pointer-events-none">
+                    <i class="fa-solid fa-helmet-safety"></i>
+                </div>
+                <div class="max-w-2xl relative z-10">
+                    <span class="bg-blue-500/30 text-blue-100 text-xs px-3 py-1 rounded-full font-semibold border border-blue-400/30">দ্রুত ও নিরাপদ সেবা</span>
+                    <h2 class="text-2xl sm:text-3xl font-bold mt-2">আপনার যেকোনো কাজের জন্য পাইলট প্রয়োজন?</h2>
+                    <p class="text-blue-100 text-sm mt-2 leading-relaxed">বাসার ইলেকট্রিক কাজ, ডেলিভারি, এসি মেরামত বা ক্লিনিং – ৩ মিনিটে আপনার টাস্ক পোস্ট করুন এবং বিশ্বস্ত পাইলটদের সরাসরি বিড অফার পান।</p>
+                    <button onclick="app.openTaskModal()" class="mt-5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-6 py-3 rounded-xl shadow-lg transition transform hover:-translate-y-0.5 flex items-center gap-2">
+                        <i class="fa-solid fa-plus-circle text-lg"></i> নতুন টাস্ক অর্ডার তৈরি করুন
+                    </button>
+                </div>
+            </div>
+
+            <!-- Active Orders & Service Categories -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                <!-- Left Section: Customer Active & History Tasks -->
+                <div class="lg:col-span-2 space-y-6">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-list-check text-blue-600"></i> আপনার টাস্ক তালিকা
+                        </h3>
+                        <span id="customerTaskCount" class="bg-slate-200 text-slate-700 text-xs font-bold px-2.5 py-1 rounded-full">০টি কাজ</span>
+                    </div>
+
+                    <!-- Task List Container -->
+                    <div id="customerTaskList" class="space-y-4">
+                        <!-- Dynamic HTML Cards inserted via JS -->
+                    </div>
+                </div>
+
+                <!-- Right Section: Quick Category Request & Stats -->
+                <div class="space-y-6">
+                    
+                    <!-- Popular Categories Quick Select -->
+                    <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200">
+                        <h4 class="font-bold text-slate-800 text-base mb-3 flex items-center justify-between">
+                            <span>জনপ্রিয় ক্যাটাগরি</span>
+                            <span class="text-xs text-blue-600 hover:underline cursor-pointer" onclick="app.openTaskModal()">সব দেখুন</span>
+                        </h4>
+                        <div class="grid grid-cols-2 gap-2 text-xs">
+                            <button onclick="app.openTaskModal('ইলেকট্রিশিয়ান')" class="p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 font-medium text-left flex items-center gap-2 transition">
+                                <i class="fa-solid fa-bolt text-amber-500 text-base"></i> ইলেকট্রিশিয়ান
+                            </button>
+                            <button onclick="app.openTaskModal('প্লাম্বিং')" class="p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 font-medium text-left flex items-center gap-2 transition">
+                                <i class="fa-solid fa-faucet-drip text-blue-500 text-base"></i> প্লাম্বিং কাজ
+                            </button>
+                            <button onclick="app.openTaskModal('হোম ক্লিনিং')" class="p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 font-medium text-left flex items-center gap-2 transition">
+                                <i class="fa-solid fa-broom text-emerald-500 text-base"></i> বাসা সাফ-সুতরা
+                            </button>
+                            <button onclick="app.openTaskModal('পার্সেল ডেলিভারি')" class="p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 font-medium text-left flex items-center gap-2 transition">
+                                <i class="fa-solid fa-box text-orange-500 text-base"></i> পার্সেল ডেলিভারি
+                            </button>
+                            <button onclick="app.openTaskModal('এসি সার্ভিসিং')" class="p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 font-medium text-left flex items-center gap-2 transition">
+                                <i class="fa-solid fa-snowflake text-cyan-500 text-base"></i> এসি সার্ভিসিং
+                            </button>
+                            <button onclick="app.openTaskModal('শিফটিং/শিফট হেল্প')" class="p-3 rounded-xl bg-slate-50 hover:bg-blue-50 hover:text-blue-600 border border-slate-100 font-medium text-left flex items-center gap-2 transition">
+                                <i class="fa-solid fa-truck-ramp-box text-purple-500 text-base"></i> বাসা পরিবর্তন
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Safety Guarantee Banner -->
+                    <div class="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex gap-3 text-amber-900 text-xs leading-relaxed">
+                        <i class="fa-solid fa-shield-halved text-amber-600 text-2xl mt-0.5"></i>
+                        <div>
+                            <strong class="font-bold text-sm block mb-0.5">নিরাপদ বিড সিস্টেম</strong>
+                            আপনার কাজ সফলভাবে সম্পন্ন হওয়া এবং পাইলট সম্পূর্ণ করার পরই কেবল পেমেন্ট কনফার্ম করুন।
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+        <!-- ================= PILOT (TASKER) VIEW ================= -->
+        <div id="pilotDashboardView" class="hidden space-y-6">
+            
+            <!-- Pilot Header Stats Banner -->
+            <div class="bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white rounded-2xl p-6 shadow-xl flex flex-col md:flex-row justify-between items-center gap-6">
+                <div class="flex items-center gap-4">
+                    <div class="relative">
+                        <img id="pilotStatAvatar" src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" class="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500 shadow-md">
+                        <span class="absolute -bottom-1 -right-1 bg-emerald-500 w-4 h-4 rounded-full border-2 border-slate-900" title="অনলাইন"></span>
+                    </div>
+                    <div>
+                        <div class="flex items-center gap-2">
+                            <h2 id="pilotStatName" class="text-xl font-bold">কামরুল ইসলাম</h2>
+                            <span class="bg-amber-500/20 text-amber-400 text-xs font-bold px-2 py-0.5 rounded border border-amber-500/30">ভেরিপায়েড পাইলট</span>
+                        </div>
+                        <p id="pilotStatSkills" class="text-xs text-slate-400 mt-1">দক্ষতা: ইলেকট্রিক সার্ভিস, এসি মেরামত, প্লাম্বিং</p>
+                        <div class="flex items-center gap-3 mt-2 text-xs">
+                            <span class="text-amber-400"><i class="fa-solid fa-star"></i> <strong id="pilotStatRating">4.9</strong> (৩২টি রিভিউ)</span>
+                            <span class="text-slate-400">•</span>
+                            <span class="text-emerald-400"><i class="fa-solid fa-circle-check"></i> ৯৮% কমপ্লিশন</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Earnings Quick Stats -->
+                <div class="flex gap-4 w-full md:w-auto justify-between md:justify-end border-t md:border-t-0 border-slate-700 pt-4 md:pt-0">
+                    <div class="bg-slate-800/80 p-3 px-5 rounded-xl border border-slate-700 text-center min-w-[110px]">
+                        <span class="text-xs text-slate-400 block">আজকের আয়</span>
+                        <span class="text-lg font-bold text-emerald-400">৳১,৮৫০</span>
+                    </div>
+                    <div class="bg-slate-800/80 p-3 px-5 rounded-xl border border-slate-700 text-center min-w-[110px]">
+                        <span class="text-xs text-slate-400 block">মোট কাজ</span>
+                        <span class="text-lg font-bold text-white">৪৭টি</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Job Feed Section -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Available Task Feed -->
+                <div class="lg:col-span-2 space-y-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                            <i class="fa-solid fa-satellite-dish text-amber-500"></i> নিকটস্থ লাইভ টাস্ক জব ফিড
+                        </h3>
+                        <span class="text-xs bg-emerald-100 text-emerald-800 px-2.5 py-1 rounded-full font-bold flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> লাইভ আপডেট
+                        </span>
+                    </div>
+
+                    <!-- Marketplace Task Cards -->
+                    <div id="pilotTaskMarketplaceList" class="space-y-4">
+                        <!-- Dynamic Task Items -->
+                    </div>
+                </div>
+
+                <!-- Active Jobs Accepted by Pilot -->
+                <div class="space-y-4">
+                    <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                        <i class="fa-solid fa-briefcase text-blue-600"></i> আপনার সক্রিয় কাজসমূহ
+                    </h3>
+                    
+                    <div id="pilotAssignedTasksList" class="space-y-4">
+                        <!-- Assigned Jobs dynamic render -->
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-slate-900 text-slate-400 text-xs py-6 border-t border-slate-800 mt-auto">
+        <div class="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-2">
+                <span class="font-bold text-white text-base">Pilot Lagbe</span>
+                <span>© 2026 পাইলাট লাগবে - ডেমো সার্ভিস প্ল্যাটফর্ম</span>
+            </div>
+            <div class="flex gap-4">
+                <a href="#" onclick="alert('এটি ডেমো প্রজেক্ট'); return false;" class="hover:text-white">গোপনীয়তা নীতি</a>
+                <a href="#" onclick="alert('এটি ডেমো প্রজেক্ট'); return false;" class="hover:text-white">ব্যবহারের শর্তাবলী</a>
+                <a href="#" onclick="alert('এটি ডেমো প্রজেক্ট'); return false;" class="hover:text-white">সহায়তা কেন্দ্র</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- ================= MODALS & OVERLAYS ================= -->
+
+    <!-- 1. CREATE TASK MODAL (Customer) -->
+    <div id="createTaskModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-lg rounded-2xl shadow-2xl overflow-hidden my-8 transform transition-all">
+            <div class="bg-slate-900 text-white p-5 flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-pen-to-square text-amber-400"></i> নতুন টাস্কের বিবরণ দিন
+                </h3>
+                <button onclick="app.closeModal('createTaskModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="createTaskForm" onsubmit="app.handleCreateTask(event)" class="p-6 space-y-4 text-sm">
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">কাজের শিরোনাম *</label>
+                    <input type="text" id="taskTitle" required placeholder="যেমন: ড্রয়িং রুমের এসি মেকানিক সার্ভিস প্রয়োজন" 
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">ক্যাটাগরি *</label>
+                        <select id="taskCategory" required class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none bg-white">
+                            <option value="ইলেকট্রিশিয়ান">ইলেকট্রিশিয়ান</option>
+                            <option value="প্লাম্বিং">প্লাম্বিং কাজ</option>
+                            <option value="এসি সার্ভিসিং">এসি সার্ভিসিং</option>
+                            <option value="হোম ক্লিনিং">হোম ক্লিনিং</option>
+                            <option value="পার্সেল ডেলিভারি">পার্সেল ডেলিভারি</option>
+                            <option value="শিফটিং/শিফট হেল্প">বাসা পরিবর্তন</option>
+                            <option value="অন্যান্য">অন্যান্য সার্ভিস</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block font-semibold text-slate-700 mb-1">আনুমানিক বাজেট (৳) *</label>
+                        <input type="number" id="taskBudget" required min="100" placeholder="যেমন: ৫০০" 
+                            class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">ঠিকানা / লোকেশন *</label>
+                    <input type="text" id="taskLocation" required placeholder="যেমন: ধানমন্ডি ২৭, রোড নম্বর ৮, ঢাকা" 
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">কাজের বিস্তারিত বর্ণনা *</label>
+                    <textarea id="taskDescription" rows="3" required placeholder="কী কী কাজ করাতে হবে বিস্তারিত লিখুন..." 
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-3">
+                    <button type="button" onclick="app.closeModal('createTaskModal')" class="px-5 py-2.5 rounded-xl border border-slate-300 text-slate-700 font-medium hover:bg-slate-100">বাতিল</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-blue-600 text-white font-bold hover:bg-blue-700 shadow-md">পোস্ট করুন</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 2. PILOT BIDDING MODAL -->
+    <div id="bidModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden my-8">
+            <div class="bg-slate-900 text-white p-5 flex justify-between items-center">
+                <h3 class="font-bold text-lg flex items-center gap-2">
+                    <i class="fa-solid fa-gavel text-amber-400"></i> বিড প্রাইস সাবমিট করুন
+                </h3>
+                <button onclick="app.closeModal('bidModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <form id="bidForm" onsubmit="app.handleSubmitBid(event)" class="p-6 space-y-4 text-sm">
+                <input type="hidden" id="bidTaskId">
+                
+                <div class="bg-slate-50 p-3 rounded-xl border border-slate-200">
+                    <span class="text-xs text-slate-500 block">কাজের নাম:</span>
+                    <h4 id="bidTaskTitleDisplay" class="font-bold text-slate-800 text-base">--</h4>
+                    <span class="text-xs text-blue-600 font-semibold" id="bidTaskBudgetDisplay">কাস্টমার বাজেট: ৳0</span>
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">আপনার অফার প্রাইস (৳) *</label>
+                    <input type="number" id="bidAmount" required min="50" placeholder="যেমন: ৪৫০" 
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none font-bold text-lg text-slate-800">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1">কাস্টমারকে বার্তা (চ্ছিক)</label>
+                    <textarea id="bidMessage" rows="2" placeholder="কাজে আপনার অভিজ্ঞতা সংক্ষেপে লিখুন..." 
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:outline-none"></textarea>
+                </div>
+
+                <div class="pt-2 flex justify-end gap-3">
+                    <button type="button" onclick="app.closeModal('bidModal')" class="px-4 py-2 rounded-xl border border-slate-300 text-slate-700">বাতিল</button>
+                    <button type="submit" class="px-6 py-2.5 rounded-xl bg-amber-500 text-slate-950 font-bold hover:bg-amber-400 shadow-md">অফার বিড করুন</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 3. BIDS LIST & PILOT SELECTION MODAL (Customer View) -->
+    <div id="viewBidsModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-2xl rounded-2xl shadow-2xl overflow-hidden my-8">
+            <div class="bg-slate-900 text-white p-5 flex justify-between items-center">
+                <div>
+                    <h3 class="font-bold text-lg flex items-center gap-2">
+                        <i class="fa-solid fa-users-viewfinder text-amber-400"></i> সাবমিট হওয়া পাইলট বিডসমূহ
+                    </h3>
+                    <p id="viewBidsTaskTitle" class="text-xs text-slate-300 mt-0.5">টাস্কের নাম</p>
+                </div>
+                <button onclick="app.closeModal('viewBidsModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6">
+                <div id="bidsModalList" class="space-y-4 max-h-[60vh] overflow-y-auto pr-1">
+                    <!-- Dynamic Bids inserted here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 4. LIVE GPS LOCATION & TASK TRACKING MODAL -->
+    <div id="trackingModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white w-full max-w-3xl rounded-2xl shadow-2xl overflow-hidden my-8">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <span class="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></span>
+                    <h3 class="font-bold text-base">লাইভ লোকেশন ও ট্র্যাকিং ম্যাপ</h3>
+                </div>
+                <button onclick="app.closeModal('trackingModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-4 sm:p-6 space-y-4">
+                <!-- Map Widget Simulation -->
+                <div class="relative w-full h-64 sm:h-80 rounded-2xl map-grid-bg border-2 border-slate-300 overflow-hidden shadow-inner flex flex-col justify-between p-4">
+                    
+                    <!-- Route Lines Overlay Simulation -->
+                    <div class="absolute inset-0 pointer-events-none opacity-40">
+                        <svg class="w-full h-full">
+                            <path d="M 100 80 Q 250 180, 450 160" stroke="#2563eb" stroke-width="4" stroke-dasharray="8 8" fill="none"/>
+                        </svg>
+                    </div>
+
+                    <!-- Customer Location Marker -->
+                    <div class="absolute top-12 left-12 sm:left-20 flex flex-col items-center">
+                        <div class="bg-blue-600 text-white p-2 rounded-full shadow-lg text-xs font-bold">
+                            <i class="fa-solid fa-house"></i>
+                        </div>
+                        <span class="bg-white/90 text-slate-800 text-[10px] font-bold px-2 py-0.5 rounded shadow mt-1">কাস্টমার লোকেশন</span>
+                    </div>
+
+                    <!-- Moving Pilot Marker Simulation -->
+                    <div id="animatedPilotMarker" class="absolute top-32 right-20 sm:right-36 flex flex-col items-center transition-all duration-1000">
+                        <div class="relative">
+                            <div class="absolute -inset-2 rounded-full bg-amber-400 pulse-marker"></div>
+                            <div class="relative bg-slate-900 text-amber-400 p-2.5 rounded-full shadow-xl text-sm font-bold border-2 border-amber-400">
+                                <i class="fa-solid fa-motorcycle"></i>
+                            </div>
+                        </div>
+                        <span id="trackingPilotLabel" class="bg-slate-900 text-white text-[10px] font-bold px-2 py-0.5 rounded shadow mt-1">পাইলট ৫ মিনিট দূরে</span>
+                    </div>
+
+                    <!-- Map overlay badges -->
+                    <div class="relative z-10 flex justify-between items-end w-full">
+                        <div class="bg-white/90 backdrop-blur p-2.5 rounded-xl shadow border border-slate-200 text-xs">
+                            <div class="font-bold text-slate-800" id="trackingTaskTitle">টাস্ক লোকেশন</div>
+                            <div class="text-slate-500 text-[11px]" id="trackingAddress">ধানমন্ডি ২৭, ঢাকা</div>
+                        </div>
+                        <div class="bg-slate-900/90 text-white px-3 py-1.5 rounded-lg text-xs font-semibold shadow">
+                            <i class="fa-solid fa-location-crosshairs text-amber-400 mr-1"></i> GPS সক্রিয়
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Status Steps Indicator -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div class="flex justify-between items-center text-xs font-bold text-slate-600 relative">
+                        <div class="flex flex-col items-center gap-1 z-10">
+                            <span class="w-7 h-7 rounded-full bg-emerald-500 text-white flex items-center justify-center">1</span>
+                            <span>পাইলট একসেপ্টেড</span>
+                        </div>
+                        <div id="step2Dot" class="flex flex-col items-center gap-1 z-10">
+                            <span class="w-7 h-7 rounded-full bg-blue-600 text-white flex items-center justify-center">2</span>
+                            <span>কাজ চলমান</span>
+                        </div>
+                        <div id="step3Dot" class="flex flex-col items-center gap-1 z-10">
+                            <span class="w-7 h-7 rounded-full bg-slate-300 text-slate-600 flex items-center justify-center">3</span>
+                            <span>পেমেন্ট ও রিভিউ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Footer -->
+                <div class="flex justify-between items-center pt-2">
+                    <button id="trackingChatBtn" onclick="" class="px-4 py-2 bg-blue-600 text-white font-semibold text-xs rounded-xl hover:bg-blue-700 flex items-center gap-2">
+                        <i class="fa-solid fa-comments"></i> চ্যাট করুন
+                    </button>
+
+                    <!-- Pilot Only Complete Work Button -->
+                    <button id="pilotCompleteWorkBtn" onclick="" class="hidden px-5 py-2.5 bg-emerald-600 text-white font-bold text-xs rounded-xl hover:bg-emerald-700 shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-check-circle text-base"></i> কাজ সম্পন্ন হয়েছে (Mark as Done)
+                    </button>
+
+                    <!-- Customer Only Pay Button (Shows when pilot marked done) -->
+                    <button id="customerPayTriggerBtn" onclick="" class="hidden px-5 py-2.5 bg-amber-500 text-slate-950 font-bold text-xs rounded-xl hover:bg-amber-400 shadow-lg flex items-center gap-2">
+                        <i class="fa-solid fa-wallet text-base"></i> পেমেন্ট করুন
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 5. REALTIME CHAT MODAL -->
+    <div id="chatModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md h-[550px] rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <!-- Chat Header -->
+            <div class="bg-slate-900 text-white p-4 flex items-center justify-between shadow-md">
+                <div class="flex items-center gap-3">
+                    <img id="chatPartnerAvatar" src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="w-10 h-10 rounded-full object-cover ring-2 ring-amber-400">
+                    <div>
+                        <h4 id="chatPartnerName" class="font-bold text-sm">চ্যাট পার্টনার</h4>
+                        <span class="text-[10px] text-emerald-400 flex items-center gap-1">
+                            <span class="w-2 h-2 rounded-full bg-emerald-400"></span> সক্রিয় আছেন
+                        </span>
+                    </div>
+                </div>
+                <button onclick="app.closeModal('chatModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+            </div>
+
+            <!-- Messages Scroll Box -->
+            <div id="chatMessagesBox" class="flex-grow p-4 overflow-y-auto space-y-3 bg-slate-50 text-xs">
+                <!-- Dynamic Chat bubbles -->
+            </div>
+
+            <!-- Message Input Form -->
+            <form onsubmit="app.handleSendChatMessage(event)" class="p-3 bg-white border-t border-slate-200 flex gap-2">
+                <input type="text" id="chatInputMessage" placeholder="মেসেজ লিখুন..." required 
+                    class="flex-grow px-3.5 py-2 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-blue-700 shadow">
+                    <i class="fa-solid fa-paper-plane"></i>
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 6. DIGITAL PAYMENT MODAL -->
+    <div id="paymentModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div class="bg-slate-900 text-white p-5 text-center relative">
+                <button onclick="app.closeModal('paymentModal')" class="absolute top-4 right-4 text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <div class="w-12 h-12 bg-amber-500 text-slate-950 rounded-full flex items-center justify-center mx-auto text-xl font-bold mb-2">
+                    <i class="fa-solid fa-receipt"></i>
+                </div>
+                <h3 class="font-bold text-lg">পেমেন্ট সম্পন্ন করুন</h3>
+                <p class="text-xs text-slate-300">চুক্তি অনুযায়ী কাজের ফাইনাল পেমেন্ট</p>
+            </div>
+
+            <div class="p-6 space-y-5 text-sm">
+                <!-- Payment summary -->
+                <div class="bg-slate-50 p-4 rounded-xl border border-slate-200 flex justify-between items-center">
+                    <div>
+                        <span class="text-xs text-slate-500 block">মোট পরিশোধযোগ্য মূল্য:</span>
+                        <span id="paymentTaskTitle" class="text-xs font-semibold text-slate-700">টাস্ক সার্ভিস</span>
+                    </div>
+                    <span id="paymentAmountDisplay" class="text-2xl font-black text-emerald-600">৳800</span>
+                </div>
+
+                <!-- Payment Methods options -->
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-2 text-xs">পেমেন্ট মাধ্যম সিলেক্ট করুন</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <label class="border-2 border-blue-600 bg-blue-50/50 p-3 rounded-xl flex items-center gap-2 cursor-pointer">
+                            <input type="radio" name="payMethod" value="bkash" checked class="text-blue-600">
+                            <span class="font-bold text-xs text-slate-800"><i class="fa-solid fa-mobile-screen text-pink-600"></i> বিকাশ / নগদ</span>
+                        </label>
+                        <label class="border border-slate-200 p-3 rounded-xl flex items-center gap-2 cursor-pointer hover:bg-slate-50">
+                            <input type="radio" name="payMethod" value="cash" class="text-blue-600">
+                            <span class="font-bold text-xs text-slate-800"><i class="fa-solid fa-money-bill-wave text-emerald-600"></i> ক্যাশ অন ডেলিভারি</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action Button -->
+                <button onclick="app.processPaymentConfirmation()" id="confirmPayBtn" class="w-full py-3 bg-emerald-600 text-white font-bold rounded-xl shadow-lg hover:bg-emerald-700 transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-shield-check"></i> পেমেন্ট কনফার্ম করুন
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 7. RATING & REVIEW MODAL -->
+    <div id="reviewModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl overflow-hidden">
+            <div class="bg-slate-900 text-white p-5 text-center">
+                <div class="w-12 h-12 bg-amber-400 text-slate-950 rounded-full flex items-center justify-center mx-auto text-xl font-bold mb-2">
+                    <i class="fa-solid fa-star"></i>
+                </div>
+                <h3 class="font-bold text-lg">রিভিউ ও রেটিং দিন</h3>
+                <p class="text-xs text-slate-300">আপনার কাজের অভিজ্ঞতা শেয়ার করুন</p>
+            </div>
+
+            <form onsubmit="app.handleRatingSubmit(event)" class="p-6 space-y-4 text-sm">
+                <!-- Star Rating input -->
+                <div class="text-center space-y-2">
+                    <span class="text-xs font-semibold text-slate-600">স্টার সিলেক্ট করুন</span>
+                    <div class="flex justify-center gap-2 text-2xl text-amber-400 cursor-pointer">
+                        <i class="fa-solid fa-star" onclick="app.setRatingStars(1)"></i>
+                        <i class="fa-solid fa-star" onclick="app.setRatingStars(2)"></i>
+                        <i class="fa-solid fa-star" onclick="app.setRatingStars(3)"></i>
+                        <i class="fa-solid fa-star" onclick="app.setRatingStars(4)"></i>
+                        <i class="fa-solid fa-star" onclick="app.setRatingStars(5)"></i>
+                    </div>
+                    <input type="hidden" id="selectedStarValue" value="5">
+                </div>
+
+                <div>
+                    <label class="block font-semibold text-slate-700 mb-1 text-xs">আপনার মতামত</label>
+                    <textarea id="reviewComment" rows="3" placeholder="পাইলটের সার্ভিস কেমন ছিল লিখুন..." required
+                        class="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 text-xs focus:ring-2 focus:ring-amber-500 focus:outline-none"></textarea>
+                </div>
+
+                <button type="submit" class="w-full py-3 bg-amber-500 text-slate-950 font-bold rounded-xl shadow hover:bg-amber-400">
+                    রিভিউ সাবমিট করুন
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 8. USER AUTH / DEMO SWITCH MODAL -->
+    <div id="authModal" class="hidden fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="bg-white w-full max-w-sm rounded-2xl shadow-2xl overflow-hidden">
+            <div class="bg-slate-900 text-white p-4 flex justify-between items-center">
+                <h3 class="font-bold text-sm">ব্যবহারকারী প্রোফাইল স্যুইচ ডেমো</h3>
+                <button onclick="app.closeModal('authModal')" class="text-slate-400 hover:text-white">
+                    <i class="fa-solid fa-xmark"></i>
+                </button>
+            </div>
+            <div class="p-4 space-y-3">
+                <p class="text-xs text-slate-500">ডেমো টেস্ট করার জন্য কাস্টমার অথবা পাইলট প্রোফাইল বেছে নিন:</p>
+                <div class="space-y-2">
+                    <button onclick="app.selectUserProfile('customer1')" class="w-full p-3 bg-slate-50 hover:bg-blue-50 border border-slate-200 rounded-xl text-left flex items-center gap-3">
+                        <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80" class="w-9 h-9 rounded-full object-cover">
+                        <div>
+                            <div class="font-bold text-xs text-slate-800">রাহিম আহমেদ</div>
+                            <span class="text-[10px] text-blue-600 font-semibold">কাস্টমার (Customer)</span>
+                        </div>
+                    </button>
+
+                    <button onclick="app.selectUserProfile('pilot1')" class="w-full p-3 bg-slate-50 hover:bg-amber-50 border border-slate-200 rounded-xl text-left flex items-center gap-3">
+                        <img src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80" class="w-9 h-9 rounded-full object-cover">
+                        <div>
+                            <div class="font-bold text-xs text-slate-800">কামরুল ইসলাম</div>
+                            <span class="text-[10px] text-amber-600 font-semibold">পাইলট (Tasker)</span>
+                        </div>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- ================= APPLICATION LOGIC (JavaScript) ================= -->
+    <script>
+        // Initial Mock Database State
+        const initialData = {
+            currentRole: 'customer', // 'customer' or 'pilot'
+            currentUser: {
+                id: 'customer1',
+                name: 'রাহিম আহমেদ',
+                role: 'customer',
+                avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+            },
+            notifications: [
+                { id: 1, text: 'স্বাগতম! Pilot Lagbe-তে আপনার প্রথম অর্ডার তৈরি করুন।', time: '১ মিনিট আগে', read: false }
+            ],
+            tasks: [
+                {
+                    id: 'task-101',
+                    title: 'বাসার ড্রয়িং রুমের এসি মেকানিক সার্ভিস প্রয়োজন',
+                    category: 'এসি সার্ভিসিং',
+                    budget: 1200,
+                    location: 'ধানমন্ডি ২৭, রোড নম্বর ৮, ঢাকা',
+                    description: 'এসি ঠান্ডা কম হচ্ছে, গ্যাস ফিলিং ও জেনারেল সার্ভিসিং করতে হবে। স্পট মেরামত দরকার।',
+                    customerId: 'customer1',
+                    customerName: 'রাহিম আহমেদ',
+                    status: 'open', // 'open', 'bidding', 'assigned', 'completed', 'paid'
+                    createdAt: '১০ মিনিট আগে',
+                    bids: [
+                        {
+                            id: 'bid-1',
+                            pilotId: 'pilot1',
+                            pilotName: 'কামরুল ইসলাম',
+                            pilotAvatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80',
+                            pilotRating: 4.9,
+                            pilotReviews: 32,
+                            amount: 1000,
+                            message: 'আমি ৯ বছর ধরে এসি সার্ভিসের কাজ করছি। ধানমন্ডি এলাকাতেই আছি, ২০ মিনিটে আসতে পারব।'
+                        }
+                    ],
+                    assignedPilotId: null,
+                    agreedPrice: 0,
+                    chatMessages: [],
+                    completedByPilot: false,
+                    isPaid: false
+                }
+            ]
+        };
+
+        // Application Engine Object
+        class PilotLagbeApp {
+            constructor() {
+                // Restore state from LocalStorage or fallback to defaults
+                const saved = localStorage.getItem('pilot_lagbe_db');
+                this.state = saved ? JSON.parse(saved) : initialData;
+                this.activeChatTaskId = null;
+                this.activeTrackingTaskId = null;
+                
+                this.init();
+            }
+
+            init() {
+                this.updateUI();
+                this.renderTasks();
+                this.renderNotifications();
+            }
+
+            saveState() {
+                localStorage.setItem('pilot_lagbe_db', JSON.stringify(this.state));
+            }
+
+            // Role Switcher
+            setRole(role) {
+                this.state.currentRole = role;
+                if (role === 'customer') {
+                    this.state.currentUser = {
+                        id: 'customer1',
+                        name: 'রাহিম আহমেদ',
+                        role: 'customer',
+                        avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80'
+                    };
+                } else {
+                    this.state.currentUser = {
+                        id: 'pilot1',
+                        name: 'কামরুল ইসলাম',
+                        role: 'pilot',
+                        avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80'
+                    };
+                }
+                this.saveState();
+                this.updateUI();
+                this.renderTasks();
+            }
+
+            toggleRole() {
+                this.setRole(this.state.currentRole === 'customer' ? 'pilot' : 'customer');
+            }
+
+            updateUI() {
+                const isCustomer = this.state.currentRole === 'customer';
+
+                // Navbar Buttons styling
+                const btnCust = document.getElementById('roleBtnCustomer');
+                const btnPilot = document.getElementById('roleBtnPilot');
+                
+                if (isCustomer) {
+                    btnCust.className = 'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 bg-blue-600 text-white shadow';
+                    btnPilot.className = 'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 text-slate-400 hover:text-white';
+                    document.getElementById('customerDashboardView').classList.remove('hidden');
+                    document.getElementById('pilotDashboardView').classList.add('hidden');
+                } else {
+                    btnPilot.className = 'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 bg-amber-500 text-slate-950 shadow font-bold';
+                    btnCust.className = 'px-4 py-1.5 rounded-lg text-sm font-semibold transition-all flex items-center gap-2 text-slate-400 hover:text-white';
+                    document.getElementById('customerDashboardView').classList.add('hidden');
+                    document.getElementById('pilotDashboardView').classList.remove('hidden');
+                }
+
+                // Header info update
+                document.getElementById('headerAvatar').src = this.state.currentUser.avatar;
+                document.getElementById('headerUserName').innerText = this.state.currentUser.name;
+                document.getElementById('headerUserRole').innerText = isCustomer ? 'কাস্টমার মোড' : 'পাইলট (টাস্কার) মোড';
+                document.getElementById('mobileRoleLabel').innerText = isCustomer ? 'কাস্টমার' : 'পাইলট';
+            }
+
+            // Notification Handlers
+            toggleNotifications() {
+                const drop = document.getElementById('notifDropdown');
+                drop.classList.toggle('hidden');
+            }
+
+            addNotification(text) {
+                this.state.notifications.unshift({
+                    id: Date.now(),
+                    text: text,
+                    time: 'এখনই',
+                    read: false
+                });
+                this.saveState();
+                this.renderNotifications();
+            }
+
+            clearNotifications() {
+                this.state.notifications = [];
+                this.saveState();
+                this.renderNotifications();
+            }
+
+            renderNotifications() {
+                const badge = document.getElementById('notifBadge');
+                const list = document.getElementById('notifList');
+                
+                if (this.state.notifications.length > 0) {
+                    badge.innerText = this.state.notifications.length;
+                    badge.classList.remove('hidden');
+                    
+                    list.innerHTML = this.state.notifications.map(n => `
+                        <div class="p-3 hover:bg-slate-50 transition">
+                            <p class="text-slate-800 text-xs font-medium">${n.text}</p>
+                            <span class="text-[10px] text-slate-400 mt-1 block">${n.time}</span>
+                        </div>
+                    `).join('');
+                } else {
+                    badge.classList.add('hidden');
+                    list.innerHTML = `<div class="p-4 text-center text-slate-400 text-xs">কোন নতুন নোটিফিকেশন নেই</div>`;
+                }
+            }
+
+            // Task Creation
+            openTaskModal(presetCategory = '') {
+                if (presetCategory) {
+                    document.getElementById('taskCategory').value = presetCategory;
+                }
+                document.getElementById('createTaskModal').classList.remove('hidden');
+            }
+
+            handleCreateTask(e) {
+                e.preventDefault();
+                const newTask = {
+                    id: 'task-' + Date.now(),
+                    title: document.getElementById('taskTitle').value,
+                    category: document.getElementById('taskCategory').value,
+                    budget: parseInt(document.getElementById('taskBudget').value),
+                    location: document.getElementById('taskLocation').value,
+                    description: document.getElementById('taskDescription').value,
+                    customerId: this.state.currentUser.id,
+                    customerName: this.state.currentUser.name,
+                    status: 'open',
+                    createdAt: 'এইমাত্র',
+                    bids: [],
+                    assignedPilotId: null,
+                    agreedPrice: 0,
+                    chatMessages: [],
+                    completedByPilot: false,
+                    isPaid: false
+                };
+
+                this.state.tasks.unshift(newTask);
+                this.addNotification(`নতুন টাস্ক প্রকাশিত হয়েছে: "${newTask.title}"`);
+                
+                // Simulate Pilot Auto Notification
+                setTimeout(() => {
+                    this.addNotification(`[পাইলট অ্যালার্ট] আপনার নিকটবর্তী নতুন কাজের অফার এসেছে!`);
+                }, 1500);
+
+                this.saveState();
+                this.closeModal('createTaskModal');
+                document.getElementById('createTaskForm').reset();
+                this.renderTasks();
+            }
+
+            // Task Rendering Controller
+            renderTasks() {
+                this.renderCustomerTasks();
+                this.renderPilotTasks();
+            }
+
+            // Customer Task List Render
+            renderCustomerTasks() {
+                const container = document.getElementById('customerTaskList');
+                const tasks = this.state.tasks;
+                document.getElementById('customerTaskCount').innerText = `${tasks.length}টি কাজ`;
+
+                if (tasks.length === 0) {
+                    container.innerHTML = `
+                        <div class="bg-white rounded-2xl p-8 text-center border border-slate-200">
+                            <i class="fa-solid fa-clipboard-list text-4xl text-slate-300 mb-2"></i>
+                            <p class="text-slate-500 font-medium">আপনার পোস্ট করা কোন কাজের অর্ডার নেই</p>
+                        </div>`;
+                    return;
+                }
+
+                container.innerHTML = tasks.map(t => {
+                    const bidCount = t.bids.length;
+                    let statusBadge = `<span class="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">ওপেন - বিড নেওয়া হচ্ছে</span>`;
+                    
+                    if (t.status === 'assigned') {
+                        statusBadge = `<span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">কাজ চলমান</span>`;
+                    } else if (t.status === 'completed') {
+                        statusBadge = `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">সম্পন্ন ও পরিশোধিত</span>`;
+                    }
+
+                    return `
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3 transition hover:shadow-md">
+                            <div class="flex justify-between items-start gap-2">
+                                <div>
+                                    <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">${t.category}</span>
+                                    <h4 class="font-bold text-slate-800 text-base leading-snug">${t.title}</h4>
+                                </div>
+                                ${statusBadge}
+                            </div>
+
+                            <p class="text-xs text-slate-600 line-clamp-2">${t.description}</p>
+
+                            <div class="flex flex-wrap items-center justify-between pt-2 border-t border-slate-100 text-xs gap-2">
+                                <div class="flex items-center gap-4 text-slate-500">
+                                    <span><i class="fa-solid fa-location-dot text-rose-500"></i> ${t.location}</span>
+                                    <span><i class="fa-solid fa-bangladeshi-taka-sign text-emerald-600 font-bold"></i> বাজেট: <strong>৳${t.budget}</strong></span>
+                                </div>
+
+                                <div class="flex items-center gap-2">
+                                    ${t.status === 'open' ? `
+                                        <button onclick="app.openViewBidsModal('${t.id}')" class="px-3.5 py-1.5 bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400 flex items-center gap-1.5 shadow-sm">
+                                            <i class="fa-solid fa-gavel"></i> বিড দেখুন (${bidCount})
+                                        </button>
+                                    ` : ''}
+
+                                    ${t.status === 'assigned' ? `
+                                        <button onclick="app.openTrackingModal('${t.id}')" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1">
+                                            <i class="fa-solid fa-location-crosshairs"></i> ট্র্যাকিং
+                                        </button>
+                                        <button onclick="app.openChatModal('${t.id}')" class="px-3 py-1.5 bg-slate-800 text-white font-semibold rounded-lg hover:bg-slate-700">
+                                            <i class="fa-solid fa-comments"></i> চ্যাট
+                                        </button>
+                                    ` : ''}
+
+                                    ${t.completedByPilot && !t.isPaid ? `
+                                        <button onclick="app.openPaymentModal('${t.id}')" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 shadow">
+                                            <i class="fa-solid fa-wallet"></i> পেমেন্ট করুন
+                                        </button>
+                                    ` : ''}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Pilot Marketplace Feed Render
+            renderPilotTasks() {
+                const feedContainer = document.getElementById('pilotTaskMarketplaceList');
+                const assignedContainer = document.getElementById('pilotAssignedTasksList');
+
+                const openTasks = this.state.tasks.filter(t => t.status === 'open');
+                const assignedTasks = this.state.tasks.filter(t => t.assignedPilotId === 'pilot1');
+
+                // Available Marketplace Jobs
+                if (openTasks.length === 0) {
+                    feedContainer.innerHTML = `<div class="p-6 text-center text-slate-400 bg-white rounded-2xl border">বর্তমানে বিড করার মত কোন নতুন টাস্ক নেই</div>`;
+                } else {
+                    feedContainer.innerHTML = openTasks.map(t => `
+                        <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
+                            <div class="flex justify-between items-start">
+                                <div>
+                                    <span class="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded">${t.category}</span>
+                                    <h4 class="font-bold text-slate-800 text-base mt-1">${t.title}</h4>
+                                </div>
+                                <span class="text-base font-black text-emerald-600">৳${t.budget}</span>
+                            </div>
+
+                            <p class="text-xs text-slate-600">${t.description}</p>
+                            <div class="text-xs text-slate-500"><i class="fa-solid fa-location-dot text-rose-500"></i> ${t.location}</div>
+
+                            <div class="pt-2 flex justify-between items-center border-t border-slate-100">
+                                <span class="text-xs text-slate-400">কাস্টমার: ${t.customerName}</span>
+                                <button onclick="app.openBidModal('${t.id}')" class="px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs hover:bg-amber-400 shadow">
+                                    <i class="fa-solid fa-paper-plane"></i> বিড প্রাইস দিন
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                // Pilot Assigned Active Jobs
+                if (assignedTasks.length === 0) {
+                    assignedContainer.innerHTML = `<div class="p-5 text-center text-slate-400 bg-white rounded-2xl border text-xs">আপনার কোন সক্রিয় কাজ নেই</div>`;
+                } else {
+                    assignedContainer.innerHTML = assignedTasks.map(t => `
+                        <div class="bg-white rounded-2xl p-4 shadow-sm border-2 border-emerald-500 space-y-3">
+                            <div class="flex justify-between items-center">
+                                <h4 class="font-bold text-slate-800 text-sm">${t.title}</h4>
+                                <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">একসেপ্টেড</span>
+                            </div>
+                            <div class="text-xs text-slate-600">চুক্তি মূল্য: <strong class="text-emerald-600">৳${t.agreedPrice}</strong></div>
+
+                            <div class="flex gap-2">
+                                <button onclick="app.openTrackingModal('${t.id}')" class="flex-grow py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">
+                                    <i class="fa-solid fa-map-location-dot"></i> লোকেশন ও ম্যাপ
+                                </button>
+                                <button onclick="app.openChatModal('${t.id}')" class="py-2 px-3 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700">
+                                    <i class="fa-solid fa-comments"></i>
+                                </button>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            }
+
+            // Pilot Bidding Logic
+            openBidModal(taskId) {
+                const task = this.state.tasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                document.getElementById('bidTaskId').value = task.id;
+                document.getElementById('bidTaskTitleDisplay').innerText = task.title;
+                document.getElementById('bidTaskBudgetDisplay').innerText = `কাস্টমার বাজেট: ৳${task.budget}`;
+                document.getElementById('bidAmount').value = task.budget;
+                document.getElementById('bidModal').classList.remove('hidden');
+            }
+
+            handleSubmitBid(e) {
+                e.preventDefault();
+                const taskId = document.getElementById('bidTaskId').value;
+                const amount = parseInt(document.getElementById('bidAmount').value);
+                const message = document.getElementById('bidMessage').value;
+
+                const task = this.state.tasks.find(t => t.id === taskId);
+                if (task) {
+                    task.bids.push({
+                        id: 'bid-' + Date.now(),
+                        pilotId: this.state.currentUser.id,
+                        pilotName: this.state.currentUser.name,
+                        pilotAvatar: this.state.currentUser.avatar,
+                        pilotRating: 4.9,
+                        pilotReviews: 32,
+                        amount: amount,
+                        message: message || 'আমি কাজটি সুন্দরভাবে সম্পন্ন করতে পারবো।'
+                    });
+
+                    this.addNotification(`[বিড অ্যালার্ট] পাইলট ${this.state.currentUser.name} আপনার কাজের জন্য ৳${amount} বিড করেছে।`);
+                    this.saveState();
+                    this.closeModal('bidModal');
+                    this.renderTasks();
+                }
+            }
+
+            // Customer View Bids & Accept Pilot
+            openViewBidsModal(taskId) {
+                const task = this.state.tasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                document.getElementById('viewBidsTaskTitle').innerText = task.title;
+                const list = document.getElementById('bidsModalList');
+
+                if (task.bids.length === 0) {
+                    list.innerHTML = `<div class="p-8 text-center text-slate-400">এখনো কোন পাইলট এই কাজে বিড করেনি। অনুগ্রহ করে কিছুক্ষণ অপেক্ষা করুন।</div>`;
+                } else {
+                    list.innerHTML = task.bids.map(b => `
+                        <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                            <div class="flex items-center gap-3">
+                                <img src="${b.pilotAvatar}" class="w-12 h-12 rounded-full object-cover ring-2 ring-amber-400">
+                                <div>
+                                    <h5 class="font-bold text-slate-800 text-sm">${b.pilotName}</h5>
+                                    <div class="text-xs text-amber-500"><i class="fa-solid fa-star"></i> ${b.pilotRating} (${b.pilotReviews} রিভিউ)</div>
+                                    <p class="text-xs text-slate-600 mt-1 italic">"${b.message}"</p>
+                                </div>
+                            </div>
+                            <div class="text-right w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 flex sm:flex-col justify-between items-end">
+                                <span class="text-lg font-black text-emerald-600">৳${b.amount}</span>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="app.openChatModal('${task.id}')" class="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-700">
+                                        <i class="fa-solid fa-comments"></i> চ্যাট
+                                    </button>
+                                    <button onclick="app.acceptPilotBid('${task.id}', '${b.pilotId}', ${b.amount})" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-700 shadow">
+                                        একসেপ্ট করুন
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+
+                document.getElementById('viewBidsModal').classList.remove('hidden');
+            }
+
+            acceptPilotBid(taskId, pilotId, price) {
+                const task = this.state.tasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                task.status = 'assigned';
+                task.assignedPilotId = pilotId;
+                task.agreedPrice = price;
+
+                this.addNotification(`অভিনন্দন! আপনি টাস্কের জন্য পাইলট কনফার্ম করেছেন।`);
+                this.saveState();
+                this.closeModal('viewBidsModal');
+                this.renderTasks();
+                this.openTrackingModal(taskId);
+            }
+
+            // GPS Tracking View
+            openTrackingModal(taskId) {
+                const task = this.state.tasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                this.activeTrackingTaskId = taskId;
+                document.getElementById('trackingTaskTitle').innerText = task.title;
+                document.getElementById('trackingAddress').innerText = task.location;
+
+                // Configure buttons based on role & completion state
+                const completeBtn = document.getElementById('pilotCompleteWorkBtn');
+                const payBtn = document.getElementById('customerPayTriggerBtn');
+                const chatBtn = document.getElementById('trackingChatBtn');
+
+                chatBtn.onclick = () => this.openChatModal(taskId);
+
+                if (this.state.currentRole === 'pilot') {
+                    completeBtn.classList.remove('hidden');
+                    completeBtn.onclick = () => this.markTaskAsDoneByPilot(taskId);
+                    payBtn.classList.add('hidden');
+                } else {
+                    completeBtn.classList.add('hidden');
+                    if (task.completedByPilot && !task.isPaid) {
+                        payBtn.classList.remove('hidden');
+                        payBtn.onclick = () => this.openPaymentModal(taskId);
+                    } else {
+                        payBtn.classList.add('hidden');
+                    }
+                }
+
+                document.getElementById('trackingModal').classList.remove('hidden');
+            }
+
+            markTaskAsDoneByPilot(taskId) {
+                const task = this.state.tasks.find(t => t.id === taskId);
+                if (task) {
+                    task.completedByPilot = true;
+                    this.addNotification(`[কাজ সম্পন্ন] পাইলট কাজটি সম্পন্ন হিসাবে চিহ্নিত করেছে। কাস্টমারকে পেমেন্ট নোটিফিকেশন পাঠানো হয়েছে।`);
+                    this.saveState();
+                    this.closeModal('trackingModal');
+                    this.renderTasks();
+                }
+            }
+
+            // Realtime Live Chat Logic
+            openChatModal(taskId) {
+                this.activeChatTaskId = taskId;
+                const task = this.state.tasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                const isCustomer = this.state.currentRole === 'customer';
+                document.getElementById('chatPartnerName').innerText = isCustomer ? 'কামরুল ইসলাম (পাইলট)' : task.customerName + ' (কাস্টমার)';
+                document.getElementById('chatPartnerAvatar').src = isCustomer ? 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&auto=format&fit=crop&q=80' : 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop&q=80';
+
+                this.renderChatMessages();
+                document.getElementById('chatModal').classList.remove('hidden');
+            }
+
+            renderChatMessages() {
+                const task = this.state.tasks.find(t => t.id === this.activeChatTaskId);
+                if (!task) return;
+
+                const box = document.getElementById('chatMessagesBox');
+                if (task.chatMessages.length === 0) {
+                    box.innerHTML = `<div class="text-center text-slate-400 my-8">কাজ ও সময় নিয়ে আলোচনা করতে বার্তা লিখুন</div>`;
+                } else {
+                    box.innerHTML = task.chatMessages.map(m => {
+                        const isMe = m.senderId === this.state.currentUser.id;
+                        return `
+                            <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                                <div class="${isMe ? 'bg-blue-600 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-white border border-slate-200 text-slate-800 rounded-r-2xl rounded-tl-2xl'} p-3 max-w-[80%] shadow-sm">
+                                    <p>${m.text}</p>
+                                </div>
+                                <span class="text-[9px] text-slate-400 mt-1">${m.time}</span>
+                            </div>
+                        `;
+                    }).join('');
+                }
+                box.scrollTop = box.scrollHeight;
+            }
+
+            handleSendChatMessage(e) {
+                e.preventDefault();
+                const input = document.getElementById('chatInputMessage');
+                const text = input.value.trim();
+                if (!text || !this.activeChatTaskId) return;
+
+                const task = this.state.tasks.find(t => t.id === this.activeChatTaskId);
+                if (!task) return;
+
+                task.chatMessages.push({
+                    senderId: this.state.currentUser.id,
+                    text: text,
+                    time: 'এখনই'
+                });
+
+                input.value = '';
+                this.renderChatMessages();
+                this.saveState();
+
+                // Auto reply simulation for demo
+                setTimeout(() => {
+                    const isCustomer = this.state.currentRole === 'customer';
+                    const autoReplyText = isCustomer ? 'জি ভাই, আমি লোকেশনে আসছি।' : 'ঠিক আছে ভাই, আপনি জলদি আসুন।';
+                    
+                    task.chatMessages.push({
+                        senderId: isCustomer ? 'pilot1' : 'customer1',
+                        text: autoReplyText,
+                        time: 'এইমাত্র'
+                    });
+                    this.renderChatMessages();
+                    this.saveState();
+                }, 1200);
+            }
+
+            // Payment Process
+            openPaymentModal(taskId) {
+                const task = this.state.tasks.find(t => t.id === taskId);
+                if (!task) return;
+
+                this.activeTrackingTaskId = taskId;
+                document.getElementById('paymentTaskTitle').innerText = task.title;
+                document.getElementById('paymentAmountDisplay').innerText = `৳${task.agreedPrice || task.budget}`;
+                document.getElementById('paymentModal').classList.remove('hidden');
+            }
+
+            processPaymentConfirmation() {
+                const task = this.state.tasks.find(t => t.id === this.activeTrackingTaskId);
+                if (task) {
+                    task.status = 'completed';
+                    task.isPaid = true;
+
+                    this.addNotification(`পেমেন্ট সফল হয়েছে! পাইলটকে ধন্যবাদ জানান।`);
+                    this.saveState();
+                    this.closeModal('paymentModal');
+                    this.renderTasks();
+
+                    // Show rating modal
+                    setTimeout(() => {
+                        document.getElementById('reviewModal').classList.remove('hidden');
+                    }, 500);
+                }
+            }
+
+            // Rating & Stars
+            setRatingStars(count) {
+                document.getElementById('selectedStarValue').value = count;
+                const stars = document.querySelectorAll('#reviewModal .fa-star');
+                stars.forEach((star, idx) => {
+                    if (idx < count) {
+                        star.classList.add('text-amber-400');
+                        star.classList.remove('text-slate-300');
+                    } else {
+                        star.classList.remove('text-amber-400');
+                        star.classList.add('text-slate-300');
+                    }
+                });
+            }
+
+            handleRatingSubmit(e) {
+                e.preventDefault();
+                this.addNotification(`ধন্যবাদ! আপনার ফিডব্যাক সফলভাবে যুক্ত করা হয়েছে।`);
+                this.closeModal('reviewModal');
+            }
+
+            // Demo User Auth Switcher Modal
+            openAuthModal() {
+                document.getElementById('authModal').classList.remove('hidden');
+            }
+
+            selectUserProfile(userKey) {
+                if (userKey === 'customer1') {
+                    this.setRole('customer');
+                } else {
+                    this.setRole('pilot');
+                }
+                this.closeModal('authModal');
+            }
+
+            closeModal(modalId) {
+                document.getElementById(modalId).classList.add('hidden');
+            }
+        }
+
+        // Global App Initialization
+        let app;
+        window.addEventListener('DOMContentLoaded', () => {
+            app = new PilotLagbeApp();
+        });
+    </script>
+</body>
+</html>
