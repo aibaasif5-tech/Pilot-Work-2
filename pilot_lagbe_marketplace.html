@@ -88,7 +88,7 @@
             <div class="flex items-center justify-between h-16">
                 
                 <!-- Logo & Tagline -->
-                <div class="flex items-center gap-3 cursor-pointer" onclick="app.switchView('dashboard')">
+                <a href="#dashboard" class="flex items-center gap-3">
                     <div class="bg-gradient-to-tr from-blue-600 to-amber-500 p-2.5 rounded-xl shadow-lg flex items-center justify-center text-white font-bold text-xl">
                         <i class="fa-solid fa-paper-plane"></i>
                     </div>
@@ -98,7 +98,7 @@
                         </h1>
                         <p class="text-xs text-slate-400">আপনার দরজায় নির্ভরযোগ্য সার্ভিস হেল্পার</p>
                     </div>
-                </div>
+                </a>
 
                 <!-- Role Selector Switcher -->
                 <div class="hidden sm:flex items-center bg-slate-800 p-1 rounded-xl border border-slate-700">
@@ -160,7 +160,11 @@
     </header>
 
     <!-- Main Dynamic Content Wrapper -->
-    <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <main id="dashboard" tabindex="-1" class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+        <p id="storageNotice" role="status" class="hidden mb-4 rounded-xl bg-amber-100 p-3 text-sm text-amber-900">
+            ব্রাউজারে ডেটা পড়া বা সংরক্ষণে সমস্যা হয়েছে। এই সেশনের নতুন পরিবর্তন পেজ রিলোড করলে হারিয়ে যেতে পারে।
+        </p>
 
         <!-- ================= CUSTOMER VIEW ================= -->
         <div id="customerDashboardView" class="space-y-6">
@@ -303,7 +307,7 @@
                 <!-- Active Jobs Accepted by Pilot -->
                 <div class="space-y-4">
                     <h3 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        <i class="fa-solid fa-briefcase text-blue-600"></i> আপনার সক্রিয় কাজসমূহ
+                        <i class="fa-solid fa-briefcase text-blue-600"></i> আপনার গৃহীত কাজসমূহ
                     </h3>
                     
                     <div id="pilotAssignedTasksList" class="space-y-4">
@@ -749,14 +753,46 @@
             ]
         };
 
+        const storageKey = 'pilot_lagbe_db';
+        const htmlEntities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+        function escapeHtml(value) {
+            return String(value ?? '').replace(/[&<>"']/g, character => htmlEntities[character]);
+        }
+
+        function avatarUrl(value) {
+            try {
+                const url = new URL(value);
+                return url.protocol === 'https:' ? url.href : initialData.currentUser.avatar;
+            } catch {
+                return initialData.currentUser.avatar;
+            }
+        }
+
+        function isRecord(value) {
+            return value !== null && typeof value === 'object' && !Array.isArray(value);
+        }
+
+        function validState(state) {
+            return isRecord(state) &&
+                ['customer', 'pilot'].includes(state.currentRole) &&
+                isRecord(state.currentUser) &&
+                typeof state.currentUser.id === 'string' &&
+                Array.isArray(state.notifications) && state.notifications.every(isRecord) &&
+                Array.isArray(state.tasks) && state.tasks.every(task =>
+                    isRecord(task) && typeof task.id === 'string' &&
+                    Array.isArray(task.bids) && task.bids.every(isRecord) &&
+                    Array.isArray(task.chatMessages) && task.chatMessages.every(isRecord)
+                );
+        }
+
         // Application Engine Object
         class PilotLagbeApp {
             constructor() {
-                // Restore state from LocalStorage or fallback to defaults
-                const saved = localStorage.getItem('pilot_lagbe_db');
-                this.state = saved ? JSON.parse(saved) : initialData;
+                this.storageAvailable = true;
+                this.state = this.loadState();
                 this.activeChatTaskId = null;
-                this.activeTrackingTaskId = null;
+                this.activePaymentTaskId = null;
                 
                 this.init();
             }
@@ -765,10 +801,51 @@
                 this.updateUI();
                 this.renderTasks();
                 this.renderNotifications();
+                document.getElementById('dashboard').addEventListener('click', event => this.handleTaskAction(event));
+                document.getElementById('bidsModalList').addEventListener('click', event => this.handleTaskAction(event));
+            }
+
+            loadState() {
+                try {
+                    const saved = localStorage.getItem(storageKey);
+                    if (saved !== null) {
+                        const state = JSON.parse(saved);
+                        if (!validState(state)) throw new Error('Invalid saved state');
+                        return state;
+                    }
+                } catch {
+                    // Keep the original data available for recovery.
+                    this.showStorageNotice();
+                }
+                return structuredClone(initialData);
+            }
+
+            showStorageNotice() {
+                this.storageAvailable = false;
+                document.getElementById('storageNotice').classList.remove('hidden');
             }
 
             saveState() {
-                localStorage.setItem('pilot_lagbe_db', JSON.stringify(this.state));
+                if (!this.storageAvailable) return;
+                try {
+                    localStorage.setItem(storageKey, JSON.stringify(this.state));
+                } catch {
+                    this.showStorageNotice();
+                }
+            }
+
+            handleTaskAction(event) {
+                const button = event.target.closest('button[data-task-action]');
+                if (!button) return;
+                const { taskAction, taskId, bidId } = button.dataset;
+                switch (taskAction) {
+                    case 'view-bids': this.openViewBidsModal(taskId); break;
+                    case 'track': this.openTrackingModal(taskId); break;
+                    case 'chat': this.openChatModal(taskId); break;
+                    case 'pay': this.openPaymentModal(taskId); break;
+                    case 'bid': this.openBidModal(taskId); break;
+                    case 'accept': this.acceptPilotBid(taskId, bidId); break;
+                }
             }
 
             // Role Switcher
@@ -818,7 +895,7 @@
                 }
 
                 // Header info update
-                document.getElementById('headerAvatar').src = this.state.currentUser.avatar;
+                document.getElementById('headerAvatar').src = avatarUrl(this.state.currentUser.avatar);
                 document.getElementById('headerUserName').innerText = this.state.currentUser.name;
                 document.getElementById('headerUserRole').innerText = isCustomer ? 'কাস্টমার মোড' : 'পাইলট (টাস্কার) মোড';
                 document.getElementById('mobileRoleLabel').innerText = isCustomer ? 'কাস্টমার' : 'পাইলট';
@@ -857,8 +934,8 @@
                     
                     list.innerHTML = this.state.notifications.map(n => `
                         <div class="p-3 hover:bg-slate-50 transition">
-                            <p class="text-slate-800 text-xs font-medium">${n.text}</p>
-                            <span class="text-[10px] text-slate-400 mt-1 block">${n.time}</span>
+                            <p class="text-slate-800 text-xs font-medium">${escapeHtml(n.text)}</p>
+                            <span class="text-[10px] text-slate-400 mt-1 block">${escapeHtml(n.time)}</span>
                         </div>
                     `).join('');
                 } else {
@@ -919,7 +996,7 @@
             // Customer Task List Render
             renderCustomerTasks() {
                 const container = document.getElementById('customerTaskList');
-                const tasks = this.state.tasks;
+                const tasks = this.state.tasks.filter(task => task.customerId === this.state.currentUser.id);
                 document.getElementById('customerTaskCount').innerText = `${tasks.length}টি কাজ`;
 
                 if (tasks.length === 0) {
@@ -936,8 +1013,9 @@
                     let statusBadge = `<span class="bg-blue-100 text-blue-700 text-xs font-bold px-2.5 py-1 rounded-full">ওপেন - বিড নেওয়া হচ্ছে</span>`;
                     
                     if (t.status === 'assigned') {
-                        statusBadge = `<span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">কাজ চলমান</span>`;
-                    } else if (t.status === 'completed') {
+                        const label = t.completedByPilot ? 'কাজ সম্পন্ন · পেমেন্ট বাকি' : 'কাজ চলমান';
+                        statusBadge = `<span class="bg-amber-100 text-amber-800 text-xs font-bold px-2.5 py-1 rounded-full">${label}</span>`;
+                    } else if (t.isPaid) {
                         statusBadge = `<span class="bg-emerald-100 text-emerald-800 text-xs font-bold px-2.5 py-1 rounded-full">সম্পন্ন ও পরিশোধিত</span>`;
                     }
 
@@ -945,38 +1023,38 @@
                         <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3 transition hover:shadow-md">
                             <div class="flex justify-between items-start gap-2">
                                 <div>
-                                    <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">${t.category}</span>
-                                    <h4 class="font-bold text-slate-800 text-base leading-snug">${t.title}</h4>
+                                    <span class="text-[11px] font-bold text-blue-600 uppercase tracking-wider">${escapeHtml(t.category)}</span>
+                                    <h4 class="font-bold text-slate-800 text-base leading-snug">${escapeHtml(t.title)}</h4>
                                 </div>
                                 ${statusBadge}
                             </div>
 
-                            <p class="text-xs text-slate-600 line-clamp-2">${t.description}</p>
+                            <p class="text-xs text-slate-600 line-clamp-2">${escapeHtml(t.description)}</p>
 
                             <div class="flex flex-wrap items-center justify-between pt-2 border-t border-slate-100 text-xs gap-2">
                                 <div class="flex items-center gap-4 text-slate-500">
-                                    <span><i class="fa-solid fa-location-dot text-rose-500"></i> ${t.location}</span>
-                                    <span><i class="fa-solid fa-bangladeshi-taka-sign text-emerald-600 font-bold"></i> বাজেট: <strong>৳${t.budget}</strong></span>
+                                    <span><i class="fa-solid fa-location-dot text-rose-500"></i> ${escapeHtml(t.location)}</span>
+                                    <span><i class="fa-solid fa-bangladeshi-taka-sign text-emerald-600 font-bold"></i> বাজেট: <strong>৳${escapeHtml(t.budget)}</strong></span>
                                 </div>
 
                                 <div class="flex items-center gap-2">
                                     ${t.status === 'open' ? `
-                                        <button onclick="app.openViewBidsModal('${t.id}')" class="px-3.5 py-1.5 bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400 flex items-center gap-1.5 shadow-sm">
+                                        <button data-task-action="view-bids" data-task-id="${escapeHtml(t.id)}" class="px-3.5 py-1.5 bg-amber-500 text-slate-950 font-bold rounded-lg hover:bg-amber-400 flex items-center gap-1.5 shadow-sm">
                                             <i class="fa-solid fa-gavel"></i> বিড দেখুন (${bidCount})
                                         </button>
                                     ` : ''}
 
                                     ${t.status === 'assigned' ? `
-                                        <button onclick="app.openTrackingModal('${t.id}')" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1">
+                                        <button data-task-action="track" data-task-id="${escapeHtml(t.id)}" class="px-3 py-1.5 bg-blue-600 text-white font-bold rounded-lg hover:bg-blue-700 flex items-center gap-1">
                                             <i class="fa-solid fa-location-crosshairs"></i> ট্র্যাকিং
                                         </button>
-                                        <button onclick="app.openChatModal('${t.id}')" class="px-3 py-1.5 bg-slate-800 text-white font-semibold rounded-lg hover:bg-slate-700">
+                                        <button data-task-action="chat" data-task-id="${escapeHtml(t.id)}" class="px-3 py-1.5 bg-slate-800 text-white font-semibold rounded-lg hover:bg-slate-700">
                                             <i class="fa-solid fa-comments"></i> চ্যাট
                                         </button>
                                     ` : ''}
 
                                     ${t.completedByPilot && !t.isPaid ? `
-                                        <button onclick="app.openPaymentModal('${t.id}')" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 shadow">
+                                        <button data-task-action="pay" data-task-id="${escapeHtml(t.id)}" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-lg hover:bg-emerald-700 shadow">
                                             <i class="fa-solid fa-wallet"></i> পেমেন্ট করুন
                                         </button>
                                     ` : ''}
@@ -993,7 +1071,7 @@
                 const assignedContainer = document.getElementById('pilotAssignedTasksList');
 
                 const openTasks = this.state.tasks.filter(t => t.status === 'open');
-                const assignedTasks = this.state.tasks.filter(t => t.assignedPilotId === 'pilot1');
+                const assignedTasks = this.state.tasks.filter(t => t.assignedPilotId === this.state.currentUser.id && this.state.currentRole === 'pilot');
 
                 // Available Marketplace Jobs
                 if (openTasks.length === 0) {
@@ -1003,18 +1081,18 @@
                         <div class="bg-white rounded-2xl p-5 shadow-sm border border-slate-200 space-y-3">
                             <div class="flex justify-between items-start">
                                 <div>
-                                    <span class="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded">${t.category}</span>
-                                    <h4 class="font-bold text-slate-800 text-base mt-1">${t.title}</h4>
+                                    <span class="bg-amber-100 text-amber-800 text-[10px] font-extrabold px-2 py-0.5 rounded">${escapeHtml(t.category)}</span>
+                                    <h4 class="font-bold text-slate-800 text-base mt-1">${escapeHtml(t.title)}</h4>
                                 </div>
-                                <span class="text-base font-black text-emerald-600">৳${t.budget}</span>
+                                <span class="text-base font-black text-emerald-600">৳${escapeHtml(t.budget)}</span>
                             </div>
 
-                            <p class="text-xs text-slate-600">${t.description}</p>
-                            <div class="text-xs text-slate-500"><i class="fa-solid fa-location-dot text-rose-500"></i> ${t.location}</div>
+                            <p class="text-xs text-slate-600">${escapeHtml(t.description)}</p>
+                            <div class="text-xs text-slate-500"><i class="fa-solid fa-location-dot text-rose-500"></i> ${escapeHtml(t.location)}</div>
 
                             <div class="pt-2 flex justify-between items-center border-t border-slate-100">
-                                <span class="text-xs text-slate-400">কাস্টমার: ${t.customerName}</span>
-                                <button onclick="app.openBidModal('${t.id}')" class="px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs hover:bg-amber-400 shadow">
+                                <span class="text-xs text-slate-400">কাস্টমার: ${escapeHtml(t.customerName)}</span>
+                                <button data-task-action="bid" data-task-id="${escapeHtml(t.id)}" class="px-4 py-2 bg-amber-500 text-slate-950 font-bold rounded-xl text-xs hover:bg-amber-400 shadow">
                                     <i class="fa-solid fa-paper-plane"></i> বিড প্রাইস দিন
                                 </button>
                             </div>
@@ -1024,21 +1102,21 @@
 
                 // Pilot Assigned Active Jobs
                 if (assignedTasks.length === 0) {
-                    assignedContainer.innerHTML = `<div class="p-5 text-center text-slate-400 bg-white rounded-2xl border text-xs">আপনার কোন সক্রিয় কাজ নেই</div>`;
+                    assignedContainer.innerHTML = `<div class="p-5 text-center text-slate-400 bg-white rounded-2xl border text-xs">আপনার কোনো গৃহীত কাজ নেই</div>`;
                 } else {
                     assignedContainer.innerHTML = assignedTasks.map(t => `
                         <div class="bg-white rounded-2xl p-4 shadow-sm border-2 border-emerald-500 space-y-3">
                             <div class="flex justify-between items-center">
-                                <h4 class="font-bold text-slate-800 text-sm">${t.title}</h4>
-                                <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">একসেপ্টেড</span>
+                                <h4 class="font-bold text-slate-800 text-sm">${escapeHtml(t.title)}</h4>
+                                <span class="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded">${t.isPaid ? 'পরিশোধিত' : t.completedByPilot ? 'পেমেন্ট বাকি' : 'কাজ চলমান'}</span>
                             </div>
-                            <div class="text-xs text-slate-600">চুক্তি মূল্য: <strong class="text-emerald-600">৳${t.agreedPrice}</strong></div>
+                            <div class="text-xs text-slate-600">চুক্তি মূল্য: <strong class="text-emerald-600">৳${escapeHtml(t.agreedPrice)}</strong></div>
 
                             <div class="flex gap-2">
-                                <button onclick="app.openTrackingModal('${t.id}')" class="flex-grow py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">
+                                <button data-task-action="track" data-task-id="${escapeHtml(t.id)}" class="flex-grow py-2 bg-slate-900 text-white rounded-xl text-xs font-bold hover:bg-slate-800">
                                     <i class="fa-solid fa-map-location-dot"></i> লোকেশন ও ম্যাপ
                                 </button>
-                                <button onclick="app.openChatModal('${t.id}')" class="py-2 px-3 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700">
+                                <button data-task-action="chat" data-task-id="${escapeHtml(t.id)}" class="py-2 px-3 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700">
                                     <i class="fa-solid fa-comments"></i>
                                 </button>
                             </div>
@@ -1066,7 +1144,8 @@
                 const message = document.getElementById('bidMessage').value;
 
                 const task = this.state.tasks.find(t => t.id === taskId);
-                if (task) {
+                if (task && task.status === 'open' && this.state.currentRole === 'pilot' &&
+                    Number.isInteger(amount) && amount >= 50) {
                     task.bids.push({
                         id: 'bid-' + Date.now(),
                         pilotId: this.state.currentUser.id,
@@ -1099,20 +1178,20 @@
                     list.innerHTML = task.bids.map(b => `
                         <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                             <div class="flex items-center gap-3">
-                                <img src="${b.pilotAvatar}" class="w-12 h-12 rounded-full object-cover ring-2 ring-amber-400">
+                                <img src="${escapeHtml(avatarUrl(b.pilotAvatar))}" class="w-12 h-12 rounded-full object-cover ring-2 ring-amber-400">
                                 <div>
-                                    <h5 class="font-bold text-slate-800 text-sm">${b.pilotName}</h5>
-                                    <div class="text-xs text-amber-500"><i class="fa-solid fa-star"></i> ${b.pilotRating} (${b.pilotReviews} রিভিউ)</div>
-                                    <p class="text-xs text-slate-600 mt-1 italic">"${b.message}"</p>
+                                    <h5 class="font-bold text-slate-800 text-sm">${escapeHtml(b.pilotName)}</h5>
+                                    <div class="text-xs text-amber-500"><i class="fa-solid fa-star"></i> ${escapeHtml(b.pilotRating)} (${escapeHtml(b.pilotReviews)} রিভিউ)</div>
+                                    <p class="text-xs text-slate-600 mt-1 italic">"${escapeHtml(b.message)}"</p>
                                 </div>
                             </div>
                             <div class="text-right w-full sm:w-auto border-t sm:border-t-0 pt-2 sm:pt-0 flex sm:flex-col justify-between items-end">
-                                <span class="text-lg font-black text-emerald-600">৳${b.amount}</span>
+                                <span class="text-lg font-black text-emerald-600">৳${escapeHtml(b.amount)}</span>
                                 <div class="flex gap-2 mt-2">
-                                    <button onclick="app.openChatModal('${task.id}')" class="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-700">
+                                    <button data-task-action="chat" data-task-id="${escapeHtml(task.id)}" class="px-3 py-1.5 bg-slate-800 text-white rounded-lg text-xs font-semibold hover:bg-slate-700">
                                         <i class="fa-solid fa-comments"></i> চ্যাট
                                     </button>
-                                    <button onclick="app.acceptPilotBid('${task.id}', '${b.pilotId}', ${b.amount})" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-700 shadow">
+                                    <button data-task-action="accept" data-task-id="${escapeHtml(task.id)}" data-bid-id="${escapeHtml(b.id)}" class="px-4 py-1.5 bg-emerald-600 text-white font-bold rounded-lg text-xs hover:bg-emerald-700 shadow">
                                         একসেপ্ট করুন
                                     </button>
                                 </div>
@@ -1124,13 +1203,16 @@
                 document.getElementById('viewBidsModal').classList.remove('hidden');
             }
 
-            acceptPilotBid(taskId, pilotId, price) {
+            acceptPilotBid(taskId, bidId) {
                 const task = this.state.tasks.find(t => t.id === taskId);
-                if (!task) return;
+                if (!task || task.status !== 'open' || this.state.currentRole !== 'customer' ||
+                    task.customerId !== this.state.currentUser.id) return;
+                const bid = task.bids.find(item => item.id === bidId);
+                if (!bid || !Number.isFinite(bid.amount) || bid.amount <= 0) return;
 
                 task.status = 'assigned';
-                task.assignedPilotId = pilotId;
-                task.agreedPrice = price;
+                task.assignedPilotId = bid.pilotId;
+                task.agreedPrice = bid.amount;
 
                 this.addNotification(`অভিনন্দন! আপনি টাস্কের জন্য পাইলট কনফার্ম করেছেন।`);
                 this.saveState();
@@ -1144,7 +1226,6 @@
                 const task = this.state.tasks.find(t => t.id === taskId);
                 if (!task) return;
 
-                this.activeTrackingTaskId = taskId;
                 document.getElementById('trackingTaskTitle').innerText = task.title;
                 document.getElementById('trackingAddress').innerText = task.location;
 
@@ -1155,26 +1236,39 @@
 
                 chatBtn.onclick = () => this.openChatModal(taskId);
 
-                if (this.state.currentRole === 'pilot') {
-                    completeBtn.classList.remove('hidden');
-                    completeBtn.onclick = () => this.markTaskAsDoneByPilot(taskId);
-                    payBtn.classList.add('hidden');
-                } else {
-                    completeBtn.classList.add('hidden');
-                    if (task.completedByPilot && !task.isPaid) {
-                        payBtn.classList.remove('hidden');
-                        payBtn.onclick = () => this.openPaymentModal(taskId);
-                    } else {
-                        payBtn.classList.add('hidden');
-                    }
-                }
+                const canComplete = this.canCompleteTask(task);
+                const canPay = this.canPayForTask(task);
+                completeBtn.classList.toggle('hidden', !canComplete);
+                completeBtn.onclick = canComplete ? () => this.markTaskAsDoneByPilot(taskId) : null;
+                payBtn.classList.toggle('hidden', !canPay);
+                payBtn.onclick = canPay ? () => this.openPaymentModal(taskId) : null;
+
+                const workStep = document.getElementById('step2Dot').firstElementChild;
+                workStep.classList.toggle('bg-blue-600', !task.completedByPilot);
+                workStep.classList.toggle('bg-emerald-500', task.completedByPilot);
+                const settlementStep = document.getElementById('step3Dot').firstElementChild;
+                settlementStep.classList.toggle('bg-slate-300', !task.completedByPilot);
+                settlementStep.classList.toggle('text-slate-600', !task.completedByPilot);
+                settlementStep.classList.toggle('bg-blue-600', task.completedByPilot && !task.isPaid);
+                settlementStep.classList.toggle('bg-emerald-500', !!task.isPaid);
+                settlementStep.classList.toggle('text-white', !!task.completedByPilot);
 
                 document.getElementById('trackingModal').classList.remove('hidden');
             }
 
+            canCompleteTask(task) {
+                return task.status === 'assigned' && !task.completedByPilot && !task.isPaid &&
+                    this.state.currentRole === 'pilot' && task.assignedPilotId === this.state.currentUser.id;
+            }
+
+            canPayForTask(task) {
+                return task.status === 'assigned' && task.completedByPilot && !task.isPaid &&
+                    this.state.currentRole === 'customer' && task.customerId === this.state.currentUser.id;
+            }
+
             markTaskAsDoneByPilot(taskId) {
                 const task = this.state.tasks.find(t => t.id === taskId);
-                if (task) {
+                if (task && this.canCompleteTask(task)) {
                     task.completedByPilot = true;
                     this.addNotification(`[কাজ সম্পন্ন] পাইলট কাজটি সম্পন্ন হিসাবে চিহ্নিত করেছে। কাস্টমারকে পেমেন্ট নোটিফিকেশন পাঠানো হয়েছে।`);
                     this.saveState();
@@ -1210,9 +1304,9 @@
                         return `
                             <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
                                 <div class="${isMe ? 'bg-blue-600 text-white rounded-l-2xl rounded-tr-2xl' : 'bg-white border border-slate-200 text-slate-800 rounded-r-2xl rounded-tl-2xl'} p-3 max-w-[80%] shadow-sm">
-                                    <p>${m.text}</p>
+                                    <p>${escapeHtml(m.text)}</p>
                                 </div>
-                                <span class="text-[9px] text-slate-400 mt-1">${m.time}</span>
+                                <span class="text-[9px] text-slate-400 mt-1">${escapeHtml(m.time)}</span>
                             </div>
                         `;
                     }).join('');
@@ -1240,8 +1334,8 @@
                 this.saveState();
 
                 // Auto reply simulation for demo
+                const isCustomer = this.state.currentRole === 'customer';
                 setTimeout(() => {
-                    const isCustomer = this.state.currentRole === 'customer';
                     const autoReplyText = isCustomer ? 'জি ভাই, আমি লোকেশনে আসছি।' : 'ঠিক আছে ভাই, আপনি জলদি আসুন।';
                     
                     task.chatMessages.push({
@@ -1257,17 +1351,17 @@
             // Payment Process
             openPaymentModal(taskId) {
                 const task = this.state.tasks.find(t => t.id === taskId);
-                if (!task) return;
+                if (!task || !this.canPayForTask(task)) return;
 
-                this.activeTrackingTaskId = taskId;
+                this.activePaymentTaskId = taskId;
                 document.getElementById('paymentTaskTitle').innerText = task.title;
                 document.getElementById('paymentAmountDisplay').innerText = `৳${task.agreedPrice || task.budget}`;
                 document.getElementById('paymentModal').classList.remove('hidden');
             }
 
             processPaymentConfirmation() {
-                const task = this.state.tasks.find(t => t.id === this.activeTrackingTaskId);
-                if (task) {
+                const task = this.state.tasks.find(t => t.id === this.activePaymentTaskId);
+                if (task && this.canPayForTask(task)) {
                     task.status = 'completed';
                     task.isPaid = true;
 
